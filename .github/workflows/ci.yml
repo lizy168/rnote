@@ -1,80 +1,8 @@
-name: CI
-
-on:
-  push:
-    branches:
-      - main
-  pull_request:
-    types: [opened, synchronize, reopened, ready_for_review]
-  workflow_dispatch:
-  workflow_call:
-
-env:
-  CARGO_TERM_COLOR: always
-
-jobs:
-  check:
-    if: github.event.pull_request.draft == false
-    runs-on: ubuntu-22.04
-    container: fedora:40
-    steps:
-      - name: Install core dependencies
-        run: |
-          sudo dnf upgrade --refresh -y
-          sudo dnf install -y gcc gcc-c++ clang python3 make cmake meson git kernel-devel gtk4-devel libadwaita-devel poppler-glib-devel poppler-data alsa-lib-devel appstream-devel desktop-file-utils
-      - name: Install additional tools
-        uses: taiki-e/install-action@v2
-        with:
-          tool: nextest
-      - name: Install toolchain
-        id: toolchain
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          components: rustfmt, clippy
-      - name: Checkout
-        uses: actions/checkout@v4
-      - name: Cache
-        uses: actions/cache@v4
-        env:
-          SEGMENT_DOWNLOAD_TIMEOUT_MINS: 10
-        with:
-          path: |
-            _mesonbuild/cargo-home/bin/
-            _mesonbuild/cargo-home/registry/index/
-            _mesonbuild/cargo-home/registry/cache/
-            _mesonbuild/cargo-home/git/db/
-            _mesonbuild/target/
-          key: cargo-${{ runner.os }}-${{ steps.toolchain.outputs.cachekey }}-${{ hashFiles('**/Cargo.lock') }}-${{ github.workflow_sha }}
-          restore-keys: cargo-${{ runner.os }}-${{ steps.toolchain.outputs.cachekey }}
-      - name: Setup
-        run: |
-          meson setup --prefix=/usr -Dprofile=devel -Dcli=true -Dci=true _mesonbuild
-      - name: Run fmt check
-        run: meson compile cargo-fmt-check -C _mesonbuild
-      - name: Compile
-        run: meson compile -v -C _mesonbuild
-      - name: Install
-        run: meson install -C _mesonbuild
-      - name: Run cargo tests
-        run: meson compile cargo-test -C _mesonbuild
-      - name: Run meson tests
-        run: meson test -v -C _mesonbuild
-      - name: Run clippy for UI
-        run: meson compile ui-cargo-clippy -C _mesonbuild
-        continue-on-error: true
-      - name: Run clippy for CLI
-        run: meson compile cli-cargo-clippy -C _mesonbuild
-        continue-on-error: true
-      - name: Run file compatibility tests
-        run: |
-          rnote-cli test\
-            misc/file-tests/v0-5-5-test.rnote\
-            misc/file-tests/v0-5-13-test.rnote\
-            misc/file-tests/v0-6-0-test.rnote\
-            misc/file-tests/v0-9-0-test.rnote\
-      - name: Upload test report
-        uses: actions/upload-artifact@v4
-        if: success() || failure()
-        with:
-          name: test-results
-          path: target/nextest/ci/test-report-junit.xml
+--- a/.github/workflows/ci.yml
++++ b/.github/workflows/ci.yml
+@@ -77,4 +77,4 @@
+         if: success() || failure()
+         with:
+           name: test-results
+-          path: target/nextest/ci/test-report-junit.xml
++          path: target/nextest/ci/test-report-junit.xml

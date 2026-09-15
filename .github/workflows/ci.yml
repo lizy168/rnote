@@ -29,6 +29,8 @@ jobs:
       - name: Install toolchain
         id: toolchain
         uses: dtolnay/rust-toolchain@stable
+        env:
+          HOME: /root
         with:
           components: rustfmt, clippy
       - name: Checkout
